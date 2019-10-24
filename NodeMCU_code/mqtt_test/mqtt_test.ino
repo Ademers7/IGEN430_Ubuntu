@@ -5,34 +5,62 @@ const char* ssid = "A4P-Ubuntu";
 const char* password =  "AimForPass";
 const char* broker_ip = "10.42.0.1";
 const int mqttPort = 1883;
- 
+String clientId = "A4P_NET1";
 WiFiClient espClient;
 PubSubClient client(espClient);
- 
-void setup() {
- 
-  Serial.begin(115200);
- 
+
+//Effect: check if the parameter payload is "ENABLE"
+bool strIsEnable(byte* payload, unsigned int length){
+  if(length != 6){
+    return false;
+  }
+  else{
+    char* enable = "ENABLE";
+    bool equal = true;
+    
+    for(int i = 0; i < length; i++){
+      if(enable[i] != payload[i]){
+        equal = false;
+      }
+    }
+    
+    return equal;
+  }
+}
+
+void callback(char* topic, byte* payload, unsigned int length) {
+  Serial.println(topic);
+  Serial.print("Message:");
+  if(strIsEnable(payload, length)){
+    //the command is "ENABLE"
+    //TODO: Aidan put your code here  
+  }
+  else{
+    //the command is not "ENABLE"  
+  }
+}
+
+void connectToWifi(){
   WiFi.begin(ssid, password);
  
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
-    Serial.println("Connecting to WiFi..");
+    Serial.println("Connecting to WiFi...");
   }
+  
   Serial.println("Connected to the WiFi network");
- 
+}
+
+void connectToBroker() {
   client.setServer(broker_ip, mqttPort);
   client.setCallback(callback);
- 
   while (!client.connected()) {
-    Serial.print("Attempting MQTT connection...");
-    // Create a random client ID
-    String clientId = "ESP8266Client";
-    clientId += String(random(0xffff), HEX);
+    Serial.print("Connecting to Mqtt Broker...");
     // Attempt to connect
     if (client.connect(clientId.c_str())) {
       Serial.println("connected");
-      client.subscribe("topic/A4PTest");
+      String topic = "topic/" + clientId;
+      client.subscribe(topic.c_str());
 
     } else {
       Serial.print("failed, rc=");
@@ -42,24 +70,21 @@ void setup() {
       delay(5000);
     }
   }
- 
+}
+
+void setup() {
+  Serial.begin(115200);
+  connectToBroker();
 }
  
-void callback(char* topic, byte* payload, unsigned int length) {
- 
-  Serial.print("Message arrived in topic: ");
-  Serial.println(topic);
- 
-  Serial.print("Message:");
-  for (int i = 0; i < length; i++) {
-    Serial.print((char)payload[i]);
-  }
- 
-  Serial.println();
-  Serial.println("-----------------------");
- 
-}
+
  
 void loop() {
+  if(!espClient.connected()){
+     connectToWifi();
+  }
+  if(!client.connected()){
+     connectToBroker(); 
+  }
   client.loop();
 }
