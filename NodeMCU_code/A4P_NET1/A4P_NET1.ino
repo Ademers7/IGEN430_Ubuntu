@@ -1,11 +1,16 @@
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
- 
-const char* ssid = "A4P-Ubuntu";
-const char* password =  "AimForPass";
-const char* broker_ip = "10.42.0.1";
-const int mqttPort = 1883;
+//Ubuntu 
+//const char* ssid = "A4P-Ubuntu";
+//const char* password =  "AimForPass";
+//const char* broker_ip = "10.42.0.1";
+//Rpi
+const char* ssid = "A4PAP";
+const char* password= "AimForPass";
+const char* broker_ip = "192.168.0.10";
 String clientId = "A4P_NET1";
+const int mqttPort = 1883;
+
 WiFiClient espClient;
 PubSubClient client(espClient);
 
@@ -34,6 +39,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
   if(strIsEnable(payload, length)){
     //the command is "ENABLE"
     //TODO: Aidan put your code here  
+    Serial.println("enable!!");
   }
   else{
     //the command is not "ENABLE"  
@@ -57,8 +63,10 @@ void connectToBroker() {
   while (!client.connected()) {
     Serial.print("Connecting to Mqtt Broker...");
     // Attempt to connect
+    //String clientId = "A4P_NET1";
+    //clientId += String(random(0xffff), HEX);
     if (client.connect(clientId.c_str())) {
-      Serial.println("connected");
+      Serial.println("connected")gi;
       String topic = "topic/" + clientId;
       client.subscribe(topic.c_str());
 
@@ -74,6 +82,7 @@ void connectToBroker() {
 
 void setup() {
   Serial.begin(115200);
+  connectToWifi();
   connectToBroker();
 }
  
