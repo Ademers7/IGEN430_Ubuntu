@@ -1,0 +1,174 @@
+
+#include <ESP8266WiFi.h>
+#include <PubSubClient.h>
+#include <FastLED.h>
+//Ubuntu
+
+
+// How many leds in your strip?
+#define NUM_LEDS 15
+#define LED_TYPE WS2812B
+#define BRIGHTNESS 50
+//#define LED_Data_Pin 5
+//#define Laser_Pin 
+#define LaserR_Pin D6
+// Define the array of leds
+CRGB leds[NUM_LEDS];
+
+//const char* ssid = "A4P-Ubuntu";
+//const char* password =  "AimForPass";
+//const char* broker_ip = "10.42.0.1";
+//Rpi
+const char* ssid = "A4PAP";
+const char* password = "AimForPass";
+const char* broker_ip = "192.168.0.10";
+String clientId = "A4P_NET1";
+const int mqttPort = 1883;
+WiFiClient espClient;
+PubSubClient client(espClient);
+//Effect: check if the parameter payload is "ENABLE"
+bool strIsEnable(byte* payload, unsigned int length) {
+  if (length != 6) {
+    return false;
+  }
+  else {
+    char* enable = "ENABLE";
+    bool equal = true;
+    for (int i = 0; i < length; i++) {
+      if (enable[i] != payload[i]) {
+        equal = false;
+      }
+    }
+    return equal;
+  }
+}
+
+void net_start(){
+int countmax = 8000;
+int score =0;
+  // Led blue
+  int count = 0;
+   //turn on lasers
+  LED_Blue();
+  delay(200);
+ for (count = 0; count<=countmax; count++){
+    if (digitalRead(LaserR_Pin) == LOW) { //lasers high 
+       score = count;
+       //Led green
+       LED_Green();
+        break;
+      }
+    else if (count == countmax){
+       score = 0;
+       LED_Red();
+       break;
+    }
+    Serial.println(digitalRead(D6));
+    delay(1);
+   } 
+delay(3000);
+// turn off led
+LED_OFF();
+delay(1000);
+//send back score
+}
+
+void LED_Blue(){
+  for(int i = 0; i < NUM_LEDS; i++){
+    leds[i] =CRGB::Blue;
+  }
+  FastLED.show();
+ }
+ 
+void LED_Red(){
+  for(int i = 0; i < NUM_LEDS; i++){
+    leds[i] =CRGB::Red;
+  }
+  FastLED.show();
+delay(500);
+}
+
+void LED_Green(){
+  for(int i = 0; i < NUM_LEDS; i++){
+    leds[i] =CRGB::Green;
+  }
+  FastLED.show();
+}
+void LED_OFF(){
+  for(int i = 0; i < NUM_LEDS; i++){
+    leds[i] =CRGB::Black;
+  }
+  FastLED.show();
+}
+void LED_Orange(){
+  for(int i = 0; i < NUM_LEDS; i++){
+    leds[i] =CRGB::Orange;
+  }
+  FastLED.show();
+}
+
+
+
+
+void callback(char* topic, byte* payload, unsigned int length) {
+  Serial.println(topic);
+  Serial.print("Message:");
+  if (strIsEnable(payload, length)) {
+    //the command is "ENABLE"
+    net_start();
+    Serial.println("enable!!");
+  }
+  else {
+    //the command is not "ENABLE"
+  }
+}
+void connectToWifi() {
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.println("Connecting to WiFi...");
+  }
+  Serial.println("Connected to the WiFi network");
+}
+void connectToBroker() {
+  client.setServer(broker_ip, mqttPort);
+  client.setCallback(callback);
+  while (!client.connected()) {
+    Serial.print("Connecting to Mqtt Broker...");
+    // Attempt to connect
+    //String clientId = "A4P_NET1";
+    //clientId += String(random(0xffff), HEX);
+    if (client.connect(clientId.c_str())) {
+      Serial.println("connected");
+      String topic = "topic/" + clientId;
+      client.subscribe(topic.c_str());
+    } else {
+      Serial.print("failed, rc=");
+      Serial.print(client.state());
+      Serial.println(" try again in 5 seconds");
+      // Wait 5 seconds before retrying
+      delay(5000);
+    }
+  }
+}
+
+void setup() {
+  Serial.begin(115200);
+  connectToWifi();
+  connectToBroker();
+ pinMode(LaserR_Pin,INPUT);
+ // Uncomment/edit one of the following lines for your leds arrangement.  
+ FastLED.addLeds<LED_TYPE, 5, GRB>(leds, NUM_LEDS);
+ FastLED.setBrightness(BRIGHTNESS);
+}
+
+void loop() {
+
+  if (!espClient.connected()) {
+    connectToWifi();
+  }
+  if (!client.connected()) {
+    connectToBroker();
+  }
+  client.loop();
+}
